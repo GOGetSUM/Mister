@@ -16,16 +16,18 @@ from twilio.rest import Client
 from tplinkcloud import TPLinkDeviceManager
 import asyncio
 
-
+from dotenv import load_dotenv
 
 
 TEMP = 90 #in degrees
 WEATHER_ID = 800 # clear skies no rain
 RUN_TIME = 30 # in seconds
-ADDRESS =os.environ.get("LOCATION")
+ADDRESS = os.environ.get("LOCATION")
 
+# LOAD environment variables
+load_dotenv(".env")
 
-# Twilio
+# Twilio --------------------------------------------------------------------------
 
 def send_message():
     TWILIO_SID = os.environ.get('TWILIO_SID')
@@ -43,7 +45,7 @@ def send_message():
         )
 
 
-# KASA
+# KASA -------------------------------------------------------------------------------
 
 username= os.environ.get('KASA_USER')
 password=os.environ.get('KASA_PASSWORD')
@@ -65,7 +67,7 @@ async def is_off():
     res = await device.is_off()
     return res
 
-
+#APP & DATABASE SETUP ---------------------------------------------------------------------------
 
 app =Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///Weather.db'
@@ -90,6 +92,7 @@ class WeatherModel(db.Model):
     weather_icon = db.Column(db.String(250), nullable=False)
 # db.create_all()
 
+#Location generator-----can be pulled from KASA in later upgrade. -------------------------------------------------
 
 ctx = ssl.create_default_context(cafile=certifi.where())
 geopy.geocoders.options.default_ssl_context = ctx
@@ -101,6 +104,9 @@ lat = location.latitude
 lon = location.longitude
 part = "currently"
 API_key = os.environ.get('OWM_API_KEY')
+
+
+#Open Weather call and request current information
 
 OWM_Endpoint = "https://api.openweathermap.org/data/2.5/onecall"
 
@@ -115,6 +121,9 @@ weather_params = {
 response = requests.get(OWM_Endpoint,params=weather_params)
 response.raise_for_status()
 weather_data = response.json()
+
+# Manipulate data, saved only required data
+
 weather_slice = weather_data['current']
 current_temp = weather_slice['temp']
 feels_like_temp = weather_slice['feels_like']
@@ -146,7 +155,7 @@ weather_0 = WeatherModel(
 )
 
 
-#---------------------------------------------------------
+#- LOGIC and Actuation of Mister--------------------------------------------------------
 list = WeatherModel.query.order_by(WeatherModel.id.desc()).all()
 
 first = list[0]
